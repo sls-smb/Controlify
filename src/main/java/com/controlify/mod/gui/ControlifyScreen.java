@@ -55,9 +55,13 @@ public class ControlifyScreen extends Screen {
                 : Component.literal("Combat Macro: OFF").withStyle(s -> s.withColor(OFF_COLOR));
     }
 
+    /**
+     * Draw the blur + our dark panel here so it happens exactly once per frame,
+     * before widgets are rendered by super.render().
+     */
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        super.renderBackground(graphics, mouseX, mouseY, delta);
+    protected void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        super.renderBackground(graphics, mouseX, mouseY, delta); // blur — called once
 
         int px = (width - PANEL_W) / 2;
         int py = (height - PANEL_H) / 2;
@@ -65,6 +69,16 @@ public class ControlifyScreen extends Screen {
         graphics.fill(px, py, px + PANEL_W, py + PANEL_H, BG_COLOR);
         graphics.fill(px, py, px + PANEL_W, py + 4, ACCENT);
         graphics.fill(px, py + PANEL_H - 4, px + PANEL_W, py + PANEL_H, ACCENT);
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        // super.render() calls renderBackground() then draws all widgets
+        super.render(graphics, mouseX, mouseY, delta);
+
+        // Text labels drawn on top of widgets
+        int px = (width - PANEL_W) / 2;
+        int py = (height - PANEL_H) / 2;
 
         graphics.drawCenteredString(font, "Controlify", width / 2, py + 14, ACCENT);
         graphics.drawString(font, "Click Delay (seconds)", px + 20, py + 96, TEXT_COLOR);
@@ -82,8 +96,6 @@ public class ControlifyScreen extends Screen {
         graphics.drawCenteredString(font, status, width / 2, py + 155, statusColor);
 
         toggleButton.setMessage(getToggleText());
-
-        super.render(graphics, mouseX, mouseY, delta);
     }
 
     @Override
