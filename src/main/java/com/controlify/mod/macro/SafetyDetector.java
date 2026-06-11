@@ -5,11 +5,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * Detects server-forced position changes and unexpected hotbar slot switches.
- * When triggered: disables the macro, shows a red STOP overlay for 3 seconds,
- * and plays anvil sounds once per second.
- */
 public class SafetyDetector {
 
     private int lastSlot = -1;
@@ -23,16 +18,23 @@ public class SafetyDetector {
     public void tick(Minecraft client) {
         if (client.player == null) return;
 
+        // Only run detection & stop logic when macro is enabled (or stop is already active)
+        boolean macroOn = ControlifyClient.INSTANCE.getConfig().isMacroEnabled();
+        if (!macroOn && !stopActive) {
+            // Still update baseline so detection is accurate when macro turns on
+            lastSlot = client.player.getInventory().selected;
+            lastPosition = client.player.position();
+            return;
+        }
+
         boolean triggered = false;
 
-        // hotbar slot check
         int currentSlot = client.player.getInventory().selected;
         if (lastSlot != -1 && currentSlot != lastSlot && !isPlayerChangingSlot(client)) {
             triggered = true;
         }
         lastSlot = currentSlot;
 
-        // teleport / position check
         Vec3 currentPos = client.player.position();
         if (lastPosition != null) {
             double delta = currentPos.distanceTo(lastPosition);
@@ -42,7 +44,7 @@ public class SafetyDetector {
         }
         lastPosition = currentPos;
 
-        if (triggered) activateStop(client);
+        if (triggered && macroOn) activateStop(client);
 
         tickStopState(client);
     }
