@@ -26,9 +26,9 @@ public class ControlifyHud {
         int x = (screenWidth - textWidth * 4) / 2;
         int y = screenHeight / 2 - 10;
 
-        graphics.pose().push();
+        graphics.pose().pushMatrix();
         graphics.pose().scale(4f, 4f);
         graphics.drawString(client.font, stopText, x / 4, y / 4, color, true);
-        graphics.pose().pop();
+        graphics.pose().popMatrix();
     }
 }
