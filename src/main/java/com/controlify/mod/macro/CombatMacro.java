@@ -32,7 +32,7 @@ public class CombatMacro {
         // Simulate a genuine left-click through the vanilla key-binding system.
         // KeyMapping.click() queues a click that Minecraft.handleKeybinds() processes
         // in the same tick via startAttack() — identical to a real mouse press.
-        KeyMapping.click(client.options.keyAttack.getKey());
+        KeyMapping.click(client.options.keyAttack.key);
 
         float minMs = config.getMinDelay() * 1000f;
         float maxMs = config.getMaxDelay() * 1000f;
