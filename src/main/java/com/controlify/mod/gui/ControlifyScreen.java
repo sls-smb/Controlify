@@ -60,7 +60,7 @@ public class ControlifyScreen extends Screen {
      * before widgets are rendered by super.render().
      */
     @Override
-    protected void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         super.renderBackground(graphics, mouseX, mouseY, delta); // blur — called once
 
         int px = (width - PANEL_W) / 2;
