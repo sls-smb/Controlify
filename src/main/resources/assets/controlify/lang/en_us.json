@@ -1,0 +1,11 @@
+{
+  "key.controlify.open_gui": "Open Controlify GUI",
+  "controlify.gui.title": "Controlify",
+  "controlify.gui.macro_toggle": "Combat Macro",
+  "controlify.gui.cps_min": "Min Delay (s)",
+  "controlify.gui.cps_max": "Max Delay (s)",
+  "controlify.gui.status_on": "ON",
+  "controlify.gui.status_off": "OFF",
+  "controlify.gui.targeting": "Targeting",
+  "controlify.gui.idle": "Idle"
+}
