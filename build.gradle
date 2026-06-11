@@ -17,7 +17,8 @@ repositories {
 }
 
 loom {
-    // Single source set — no client/main split needed for a client-only mod
+    accessWidenerPath = file("src/main/resources/controlify.accesswidener")
+
     mods {
         "controlify" {
             sourceSet sourceSets.main
