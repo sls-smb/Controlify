@@ -2,39 +2,33 @@ package com.controlify.mod.hud;
 
 import com.controlify.mod.ControlifyClient;
 import com.controlify.mod.macro.SafetyDetector;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 
-/**
- * Draws the STOP overlay when the safety detector is active.
- */
 public class ControlifyHud {
 
-    public void render(DrawContext context, MinecraftClient client) {
+    public void render(GuiGraphics graphics, Minecraft client) {
         SafetyDetector detector = ControlifyClient.INSTANCE.getSafetyDetector();
         if (!detector.isStopActive()) return;
 
-        TextRenderer font = client.textRenderer;
-        int screenWidth = client.getWindow().getScaledWidth();
-        int screenHeight = client.getWindow().getScaledHeight();
+        int screenWidth = client.getWindow().getGuiScaledWidth();
+        int screenHeight = client.getWindow().getGuiScaledHeight();
 
-        Text stopText = Text.literal("STOP");
-        int textWidth = font.getWidth(stopText);
+        Component stopText = Component.literal("STOP");
+        int textWidth = client.font.width(stopText);
 
-        // Fade alpha based on remaining time
         long remaining = detector.getStopUntil() - System.currentTimeMillis();
-        float alpha = Math.min(1.0f, remaining / 500f); // fade out last 500ms
+        float alpha = Math.min(1.0f, remaining / 500f);
         int a = (int) (alpha * 255);
-        int color = (a << 24) | 0xFF0000; // red with dynamic alpha
+        int color = (a << 24) | 0xFF0000;
 
         int x = (screenWidth - textWidth * 4) / 2;
         int y = screenHeight / 2 - 10;
 
-        context.getMatrices().push();
-        context.getMatrices().scale(4f, 4f, 1f);
-        context.drawText(font, stopText, x / 4, y / 4, color, true);
-        context.getMatrices().pop();
+        graphics.pose().pushPose();
+        graphics.pose().scale(4f, 4f, 1f);
+        graphics.drawString(client.font, stopText, x / 4, y / 4, color, true);
+        graphics.pose().popPose();
     }
 }

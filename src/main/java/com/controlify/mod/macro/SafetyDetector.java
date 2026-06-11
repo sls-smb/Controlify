@@ -1,98 +1,78 @@
 package com.controlify.mod.macro;
 
 import com.controlify.mod.ControlifyClient;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.phys.Vec3;
 
 /**
- * Detects server-forced position changes and unexpected hotbar slot switches
- * that indicate external interference. When triggered, disables the macro and
- * shows a red STOP overlay for up to 3 seconds.
+ * Detects server-forced position changes and unexpected hotbar slot switches.
+ * When triggered: disables the macro, shows a red STOP overlay for 3 seconds,
+ * and plays anvil sounds once per second.
  */
 public class SafetyDetector {
 
     private int lastSlot = -1;
-    private Vec3d lastPosition = null;
-    // threshold: teleport if moved more than this distance in one tick without sprinting
+    private Vec3 lastPosition = null;
     private static final double TELEPORT_THRESHOLD = 10.0;
 
     private boolean stopActive = false;
     private long stopUntil = 0;
     private int anvilSoundTick = 0;
 
-    public void tick(MinecraftClient client) {
+    public void tick(Minecraft client) {
         if (client.player == null) return;
 
         boolean triggered = false;
 
-        // --- hotbar slot check ---
-        int currentSlot = client.player.getInventory().selectedSlot;
-        if (lastSlot != -1 && currentSlot != lastSlot) {
-            // Only flag if the player didn't press a slot key themselves.
-            // We detect this by checking if no number key is pressed.
-            if (!isPlayerChangingSlot(client)) {
-                triggered = true;
-            }
+        // hotbar slot check
+        int currentSlot = client.player.getInventory().selected;
+        if (lastSlot != -1 && currentSlot != lastSlot && !isPlayerChangingSlot(client)) {
+            triggered = true;
         }
         lastSlot = currentSlot;
 
-        // --- position / teleport check ---
-        Vec3d currentPos = client.player.getPos();
+        // teleport / position check
+        Vec3 currentPos = client.player.position();
         if (lastPosition != null) {
             double delta = currentPos.distanceTo(lastPosition);
-            boolean isOnGround = client.player.isOnGround();
-            boolean isSprinting = client.player.isSprinting();
-            // Ignore normal movement; flag only sudden large jumps
-            if (delta > TELEPORT_THRESHOLD && !client.player.hasVehicle()) {
+            if (delta > TELEPORT_THRESHOLD && !client.player.isPassenger()) {
                 triggered = true;
             }
         }
         lastPosition = currentPos;
 
-        // --- trigger stop ---
-        if (triggered) {
-            activateStop(client);
-        }
+        if (triggered) activateStop(client);
 
-        // --- tick stop timer and sounds ---
         tickStopState(client);
     }
 
-    private boolean isPlayerChangingSlot(MinecraftClient client) {
-        // Check vanilla key bindings for slots 1-9
+    private boolean isPlayerChangingSlot(Minecraft client) {
         for (int i = 0; i < 9; i++) {
-            if (client.options.hotbarKeys[i].isPressed()) return true;
+            if (client.options.keyHotbarSlots[i].isDown()) return true;
         }
         return false;
     }
 
-    private void activateStop(MinecraftClient client) {
-        // Disable the macro immediately
+    private void activateStop(Minecraft client) {
         ControlifyClient.INSTANCE.getConfig().setMacroEnabled(false);
         ControlifyClient.INSTANCE.getMacro().reset();
-
         stopActive = true;
         stopUntil = System.currentTimeMillis() + 3000;
         anvilSoundTick = 0;
     }
 
-    private void tickStopState(MinecraftClient client) {
+    private void tickStopState(Minecraft client) {
         if (!stopActive) return;
-
-        long now = System.currentTimeMillis();
-        if (now >= stopUntil) {
+        if (System.currentTimeMillis() >= stopUntil) {
             stopActive = false;
             return;
         }
-
-        // Play anvil sound every ~20 ticks (1 second)
         anvilSoundTick++;
         if (anvilSoundTick >= 20) {
             anvilSoundTick = 0;
             if (client.player != null) {
-                client.player.playSound(SoundEvents.BLOCK_ANVIL_LAND, 1.0f, 1.0f);
+                client.player.playSound(SoundEvents.ANVIL_LAND, 1.0f, 1.0f);
             }
         }
     }

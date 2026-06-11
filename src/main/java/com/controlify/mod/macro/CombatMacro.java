@@ -1,22 +1,22 @@
 package com.controlify.mod.macro;
 
 import com.controlify.mod.config.ControlifyConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Random;
 
 /**
- * Performs a left-click attack when a mob (non-player living entity) is under
- * the crosshair. Click timing is randomised between minDelay and maxDelay to
- * avoid detectable fixed patterns.
+ * Attacks the mob under the crosshair at a random interval between minDelay
+ * and maxDelay (in seconds). Uses client.gameMode.attack() so no access
+ * widener is needed.
  */
 public class CombatMacro {
 
@@ -24,65 +24,60 @@ public class CombatMacro {
     private final Random random = new Random();
     private long nextClickTime = 0;
 
-    public void tick(MinecraftClient client, ControlifyConfig config) {
-        if (client.player == null || client.world == null) return;
+    public void tick(Minecraft client, ControlifyConfig config) {
+        if (client.player == null || client.level == null || client.gameMode == null) return;
         if (!config.isMacroEnabled()) return;
 
-        if (!isMobTargeted(client)) return;
+        Entity target = getMobTarget(client);
+        if (target == null) return;
 
         long now = System.currentTimeMillis();
         if (now < nextClickTime) return;
 
-        // Simulate an attack key press for exactly one tick
-        client.options.attackKey.setPressed(true);
-        client.doAttack();
-        client.options.attackKey.setPressed(false);
+        client.gameMode.attack(client.player, target);
+        client.player.resetAttackStrengthTicker();
 
-        // Schedule next click with random delay in [minDelay, maxDelay] seconds
         float minMs = config.getMinDelay() * 1000f;
         float maxMs = config.getMaxDelay() * 1000f;
-        long delay = (long) (minMs + random.nextFloat() * (maxMs - minMs));
-        nextClickTime = now + delay;
+        nextClickTime = now + (long) (minMs + random.nextFloat() * (maxMs - minMs));
     }
 
     /**
-     * Returns true if the player's crosshair is aimed at a non-player living entity
-     * within reach, using the game's existing crosshair target first and falling back
-     * to a manual raycast.
+     * Returns the mob entity under the crosshair, or null if none is targeted.
      */
-    private boolean isMobTargeted(MinecraftClient client) {
-        // Fast path: use the pre-computed crosshair target
-        HitResult hit = client.crosshairTarget;
-        if (hit instanceof EntityHitResult entityHit) {
-            Entity entity = entityHit.getEntity();
-            return entity instanceof LivingEntity && !(entity instanceof PlayerEntity);
+    private Entity getMobTarget(Minecraft client) {
+        // Fast path: use pre-computed crosshair target
+        HitResult hit = client.hitResult;
+        if (hit instanceof EntityHitResult ehr) {
+            Entity e = ehr.getEntity();
+            if (e instanceof LivingEntity && !(e instanceof Player)) return e;
         }
 
-        // Fallback manual raycast for entities the vanilla target might miss
+        // Fallback: manual AABB raycast
         return manualEntityRaycast(client);
     }
 
-    private boolean manualEntityRaycast(MinecraftClient client) {
-        Vec3d eyePos = client.player.getEyePos();
-        Vec3d lookVec = client.player.getRotationVec(1.0f);
-        Vec3d end = eyePos.add(lookVec.multiply(REACH));
+    private Entity manualEntityRaycast(Minecraft client) {
+        Vec3 eyePos = client.player.getEyePosition();
+        Vec3 lookVec = client.player.getViewVector(1.0f);
+        Vec3 end = eyePos.add(lookVec.scale(REACH));
 
-        Box searchBox = client.player.getBoundingBox().stretch(lookVec.multiply(REACH)).expand(1.0);
-        List<Entity> entities = client.world.getOtherEntities(
+        AABB searchBox = client.player.getBoundingBox().expandTowards(lookVec.scale(REACH)).inflate(1.0);
+        List<Entity> entities = client.level.getEntities(
                 client.player, searchBox,
-                e -> e instanceof LivingEntity && !(e instanceof PlayerEntity) && e.isAlive()
+                e -> e instanceof LivingEntity && !(e instanceof Player) && e.isAlive()
         );
 
         for (Entity entity : entities) {
-            Box entityBox = entity.getBoundingBox().expand(0.1);
-            if (entityBox.raycast(eyePos, end).isPresent()) return true;
+            AABB box = entity.getBoundingBox().inflate(0.1);
+            if (box.clip(eyePos, end).isPresent()) return entity;
         }
-        return false;
+        return null;
     }
 
-    public boolean isTargetingMob(MinecraftClient client) {
-        if (client.player == null || client.world == null) return false;
-        return isMobTargeted(client);
+    public boolean isTargetingMob(Minecraft client) {
+        if (client == null || client.player == null || client.level == null) return false;
+        return getMobTarget(client) != null;
     }
 
     public void reset() {

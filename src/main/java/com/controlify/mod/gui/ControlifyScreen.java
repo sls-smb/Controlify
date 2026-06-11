@@ -2,156 +2,116 @@ package com.controlify.mod.gui;
 
 import com.controlify.mod.ControlifyClient;
 import com.controlify.mod.config.ControlifyConfig;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 public class ControlifyScreen extends Screen {
 
     private static final int PANEL_W = 300;
     private static final int PANEL_H = 220;
     private static final int BG_COLOR = 0xE0101820;
-    private static final int ACCENT = 0xFF00D4FF;
+    private static final int ACCENT   = 0xFF00D4FF;
     private static final int TEXT_COLOR = 0xFFE0E0E0;
-    private static final int ON_COLOR = 0xFF00FF88;
+    private static final int ON_COLOR  = 0xFF00FF88;
     private static final int OFF_COLOR = 0xFFFF4444;
 
     private final ControlifyConfig config;
-    private ButtonWidget toggleButton;
-    private DelaySlider minDelaySlider;
-    private DelaySlider maxDelaySlider;
+    private Button toggleButton;
 
     public ControlifyScreen() {
-        super(Text.literal("Controlify"));
+        super(Component.literal("Controlify"));
         this.config = ControlifyClient.INSTANCE.getConfig();
     }
 
     @Override
     protected void init() {
-        int panelX = (width - PANEL_W) / 2;
-        int panelY = (height - PANEL_H) / 2;
+        int px = (width - PANEL_W) / 2;
+        int py = (height - PANEL_H) / 2;
 
-        // Toggle button
-        toggleButton = ButtonWidget.builder(
-                getToggleText(),
-                btn -> {
-                    config.setMacroEnabled(!config.isMacroEnabled());
-                    btn.setMessage(getToggleText());
-                }
-        ).dimensions(panelX + 20, panelY + 60, 260, 28).build();
-        addDrawableChild(toggleButton);
+        toggleButton = Button.builder(getToggleText(), btn -> {
+            config.setMacroEnabled(!config.isMacroEnabled());
+            btn.setMessage(getToggleText());
+        }).bounds(px + 20, py + 60, 260, 28).build();
+        addRenderableWidget(toggleButton);
 
-        // Min delay slider
-        minDelaySlider = new DelaySlider(
-                panelX + 20, panelY + 110, 120, 24,
-                "Min Delay", config.getMinDelay(), 0.1f, 5.0f
-        ) {
+        addRenderableWidget(new DelaySlider(px + 20, py + 110, 120, 24, "Min Delay", config.getMinDelay()) {
             @Override protected void onValueChange(float val) { config.setMinDelay(val); }
-        };
-        addDrawableChild(minDelaySlider);
+        });
 
-        // Max delay slider
-        maxDelaySlider = new DelaySlider(
-                panelX + 160, panelY + 110, 120, 24,
-                "Max Delay", config.getMaxDelay(), 0.1f, 5.0f
-        ) {
+        addRenderableWidget(new DelaySlider(px + 160, py + 110, 120, 24, "Max Delay", config.getMaxDelay()) {
             @Override protected void onValueChange(float val) { config.setMaxDelay(val); }
-        };
-        addDrawableChild(maxDelaySlider);
+        });
 
-        // Close button
-        addDrawableChild(ButtonWidget.builder(
-                Text.literal("Close"),
-                btn -> close()
-        ).dimensions(panelX + 90, panelY + 170, 120, 24).build());
+        addRenderableWidget(Button.builder(Component.literal("Close"), btn -> onClose())
+                .bounds(px + 90, py + 170, 120, 24).build());
     }
 
-    private Text getToggleText() {
-        if (config.isMacroEnabled()) {
-            return Text.literal("Combat Macro: ").append(Text.literal("ON").withColor(ON_COLOR));
-        } else {
-            return Text.literal("Combat Macro: ").append(Text.literal("OFF").withColor(OFF_COLOR));
-        }
+    private Component getToggleText() {
+        return config.isMacroEnabled()
+                ? Component.literal("Combat Macro: ON").withStyle(s -> s.withColor(ON_COLOR))
+                : Component.literal("Combat Macro: OFF").withStyle(s -> s.withColor(OFF_COLOR));
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Dim background
-        renderBackground(context, mouseX, mouseY, delta);
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        super.renderBackground(graphics, mouseX, mouseY, delta);
 
-        int panelX = (width - PANEL_W) / 2;
-        int panelY = (height - PANEL_H) / 2;
+        int px = (width - PANEL_W) / 2;
+        int py = (height - PANEL_H) / 2;
 
-        // Panel background
-        context.fill(panelX, panelY, panelX + PANEL_W, panelY + PANEL_H, BG_COLOR);
-        // Top accent bar
-        context.fill(panelX, panelY, panelX + PANEL_W, panelY + 4, ACCENT);
-        // Bottom accent bar
-        context.fill(panelX, panelY + PANEL_H - 4, panelX + PANEL_W, panelY + PANEL_H, ACCENT);
+        graphics.fill(px, py, px + PANEL_W, py + PANEL_H, BG_COLOR);
+        graphics.fill(px, py, px + PANEL_W, py + 4, ACCENT);
+        graphics.fill(px, py + PANEL_H - 4, px + PANEL_W, py + PANEL_H, ACCENT);
 
-        // Title
-        context.drawCenteredTextWithShadow(textRenderer, "Controlify", width / 2, panelY + 14, ACCENT);
+        graphics.drawCenteredString(font, "Controlify", width / 2, py + 14, ACCENT);
+        graphics.drawString(font, "Click Delay (seconds)", px + 20, py + 96, TEXT_COLOR);
 
-        // Section label
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Click Delay (seconds)"), panelX + 20, panelY + 96, TEXT_COLOR);
-
-        // Delay values under sliders
         String minVal = String.format("%.2f s", config.getMinDelay());
         String maxVal = String.format("%.2f s", config.getMaxDelay());
-        context.drawCenteredTextWithShadow(textRenderer, minVal, panelX + 80, panelY + 138, TEXT_COLOR);
-        context.drawCenteredTextWithShadow(textRenderer, maxVal, panelX + 220, panelY + 138, TEXT_COLOR);
+        graphics.drawCenteredString(font, minVal, px + 80, py + 138, TEXT_COLOR);
+        graphics.drawCenteredString(font, maxVal, px + 220, py + 138, TEXT_COLOR);
 
-        // Live status indicator
-        boolean targeting = ControlifyClient.INSTANCE.getMacro()
-                .isTargetingMob(client);
+        boolean targeting = ControlifyClient.INSTANCE.getMacro().isTargetingMob(minecraft);
         String status = config.isMacroEnabled()
                 ? (targeting ? "Targeting mob" : "Idle — no mob in sight")
                 : "Macro disabled";
         int statusColor = config.isMacroEnabled() ? (targeting ? ON_COLOR : 0xFFFFAA00) : OFF_COLOR;
-        context.drawCenteredTextWithShadow(textRenderer, status, width / 2, panelY + 155, statusColor);
+        graphics.drawCenteredString(font, status, width / 2, py + 155, statusColor);
 
-        // Refresh toggle button label each frame so it stays in sync
         toggleButton.setMessage(getToggleText());
 
-        super.render(context, mouseX, mouseY, delta);
+        super.render(graphics, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean shouldPause() { return false; }
+    public boolean isPauseScreen() { return false; }
 
     // ------------------------------------------------------------------
-    // Inner slider class
+    // Slider
     // ------------------------------------------------------------------
-    abstract static class DelaySlider extends SliderWidget {
+    abstract static class DelaySlider extends AbstractSliderButton {
+        private static final float MIN = 0.1f;
+        private static final float MAX = 5.0f;
         private final String label;
-        private final float min;
-        private final float range;
 
-        DelaySlider(int x, int y, int width, int height,
-                    String label, float initial, float min, float max) {
-            super(x, y, width, height, Text.empty(), (initial - min) / (max - min));
+        DelaySlider(int x, int y, int w, int h, String label, float initial) {
+            super(x, y, w, h, Component.empty(), (initial - MIN) / (MAX - MIN));
             this.label = label;
-            this.min = min;
-            this.range = max - min;
             updateMessage();
         }
 
-        float getValue() {
-            return min + (float) value * range;
-        }
+        float getValue() { return MIN + (float) value * (MAX - MIN); }
 
         @Override
         protected void updateMessage() {
-            setMessage(Text.literal(label + ": " + String.format("%.2f", getValue())));
+            setMessage(Component.literal(label + ": " + String.format("%.2f", getValue())));
         }
 
         @Override
-        protected void applyValue() {
-            onValueChange(getValue());
-        }
+        protected void applyValue() { onValueChange(getValue()); }
 
         protected abstract void onValueChange(float val);
     }
